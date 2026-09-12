@@ -1,0 +1,10 @@
+Home Assignment-week1day1
+1) Classification Algorithm
+a) Age <30 and Govt satisfaction less ,urban
+b) Age >50 and Govt statisfaction less ,non urban
+validate the percentage
+
+2)Linear regerssion
+a) QA Salary
+b) Food Delivery time
+Check the Calculation for price and time

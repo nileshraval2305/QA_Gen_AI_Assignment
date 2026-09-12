@@ -1,0 +1,21 @@
+Home Assignment
+1) Get the List of Open weight LLM from different service providers
+a) Open ai
+b) Qwen
+c) Deepseek
+
+2)Hallucination check for the below prompt 
+Write a 4-line poem where every line ends with a word that 
+strictly rhymes with the word ‘Silver’.
+a)qwen ai
+b) Chatgpt
+c)Deepseek
+d)Gemini
+3) From open router take the model details with Context window for any 10 models from 3 service providers
+https://openrouter.ai/models
+
+Reference Links
+https://ollama.com/library/gpt-oss:120b
+https://developers.openai.com/api/docs/models/gpt-oss-120b
+https://openrouter.ai/models
+https://platform.openai.com/tokenizer
