@@ -1,0 +1,10 @@
+1. Summary Field Prompt
+
+Want to have Mandatory Summary field below Story Title field. This should be similar to Acceptance Criteria. The position should be below Story Title and above Description
+
+
+2. Reset Button prompt
+
+There is no Reset button in the frontend to reset all the input and output generated
+Want to have a Reset button on the top right corner below the User Story to Test title in the frontend application
+First analyse and come up with the impacted files. After I review and approve, then implement in Agent mode

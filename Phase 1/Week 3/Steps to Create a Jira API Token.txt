@@ -1,0 +1,12 @@
+1. Log in to Jira and click your Profile icon in the top-right corner.
+2. Select Account Settings.
+3. Open the Security tab from the top menu.
+4. Scroll down to the API Tokens section.
+5. Click Create and manage API tokens.
+6. Jira may ask you to verify your identity. A verification code will be sent to your registered email address.
+7. Enter the verification code and continue.
+8. Click Create API Token.
+9. Enter a suitable name for the token and click Create.
+10. Copy and save the API token securely, as it may not be shown again.
+
+⚠️ Important: Do not share the API token publicly or with unauthorized users.
