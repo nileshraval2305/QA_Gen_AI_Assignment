@@ -1,0 +1,190 @@
+{
+  "name": "github code revierwer Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "github-code-review",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -592,
+        -48
+      ],
+      "id": "d1018afe-ef69-4dc3-89ac-2e283617d36c",
+      "name": "GitHub Code Review Webhook",
+      "webhookId": "a46d821f-7485-4e3c-b8e6-320b32354c87"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.body.githubUrl }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -400,
+        -32
+      ],
+      "id": "14d2a149-1404-43b9-8743-162ddfebfca2",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Act as a principal software engineer performing an evidence-based code review. Review the source supplied below. Be specific, balanced, and practical; do not invent behavior or claim execution.\n\nSOURCE CODE:\n{{ $json.data }}\n\nScore exactly these five dimensions from 0 to 20, where 20 is strongest:\n1. codeReadability — naming, clarity, structure, duplication\n2. codeEfficiency — algorithmic/resource efficiency and avoidable work\n3. errorHandling — exception, failure, null and cleanup handling\n4. maintainability — cohesion, modularity, testability and change risk\n5. bestPractices — language/framework conventions, Selenium practices, and security hygiene where applicable\n\nScoring rules:\n- Score only evidence in the supplied source; do not reward or penalize unseen project files.\n- 16–20: strong evidence of good practice; 11–15: generally sound with clear improvements; 6–10: material gaps; 0–5: severe gaps or no meaningful evidence of the criterion.\n- An unassessable aspect is not proof of a defect. State that limitation in the rationale and choose a cautious score.\n- overallScore MUST equal the sum of the five category scores (0–100).\n- grade is Excellent for 90–100, Good for 75–89, Fair for 60–74, and Poor for 0–59.\n- mergeRecommendation is Approve for 85–100, Request changes for 60–84, and Do not merge for 0–59.\n- Findings must be actionable and grounded in code. Severity is Critical, High, Medium, Low, or Informational. Give a method or real approximate line only when determinable; otherwise identify the symbol/area without fabricating a line. Use an empty findings array when no issue is evidenced.\n\nReturn ONLY one valid JSON object (no Markdown fences, preamble, or trailing commentary) with this exact shape and types:\n{\n  \"overallScore\": 0,\n  \"grade\": \"Poor\",\n  \"mergeRecommendation\": \"Do not merge\",\n  \"summary\": \"Concise overall assessment with important limitations.\",\n  \"categories\": {\n    \"codeReadability\": { \"score\": 0, \"rationale\": \"Evidence-based explanation.\" },\n    \"codeEfficiency\": { \"score\": 0, \"rationale\": \"Evidence-based explanation.\" },\n    \"errorHandling\": { \"score\": 0, \"rationale\": \"Evidence-based explanation.\" },\n    \"maintainability\": { \"score\": 0, \"rationale\": \"Evidence-based explanation.\" },\n    \"bestPractices\": { \"score\": 0, \"rationale\": \"Evidence-based explanation.\" }\n  },\n  \"findings\": [\n    { \"severity\": \"Medium\", \"location\": \"Method or approximate line, if determinable\", \"issue\": \"What is wrong\", \"impact\": \"Why it matters\", \"recommendation\": \"Specific fix\", \"example\": \"Optional short corrected snippet or empty string\" }\n  ],\n  \"topRecommendations\": [\"Up to three prioritized actions\"],\n  \"correctedCodeExample\": \"Optional focused corrected snippet, or empty string\",\n  \"limitations\": [\"Any scope or evidence limitations\"]\n}\n\nEnsure all five category keys and fields are present, each score is an integer from 0 through 20, all schema values have the stated types, overallScore exactly matches the sum, and grade/recommendation match their thresholds. Do not claim code was executed or tested.",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        -192,
+        -32
+      ],
+      "id": "d667a9bf-2d70-4769-bbdb-256c625db12e",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "model": "openai/gpt-oss-120b",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        -272,
+        176
+      ],
+      "id": "bba863c4-6131-457f-bd8f-348add8dfff2",
+      "name": "Groq Chat Model",
+      "credentials": {
+        "groqApi": {
+          "id": "2tmV5hSnAwbHyIgb",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "nilesh.qa2012@gmail.com",
+        "toEmail": "nilesh.qa2012@gmail.com",
+        "subject": "Code Review AI - Source Review",
+        "emailFormat": "text",
+        "text": "={{ $json.text }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        160,
+        -32
+      ],
+      "id": "126703b6-7ea6-4b8e-bbfb-40dcea1d49bd",
+      "name": "Send an Email",
+      "webhookId": "482fda25-2428-4bb8-a346-fccaa3f627b0",
+      "credentials": {
+        "smtp": {
+          "id": "w0R55oCQVgY4nubT",
+          "name": "SMTP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.parse($node[\"Basic LLM Chain\"].json.text) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        368,
+        -32
+      ],
+      "id": "f26ddce1-f310-4e50-a26b-a1470081c1d3",
+      "name": "Respond to Webhook"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "GitHub Code Review Webhook": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Send an Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send an Email": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "a77284b3-27c3-43ea-9e09-a6e125fe42c0",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "cff8aff8c354c50f0eaff9eb943cbd9866dcf2adfda39f25f2f01f5d22d53732"
+  },
+  "id": "FSO8URa7PuWldZot",
+  "tags": []
+}

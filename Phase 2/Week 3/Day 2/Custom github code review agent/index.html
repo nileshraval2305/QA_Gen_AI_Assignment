@@ -1,0 +1,765 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#07101f" />
+    <meta name="description" content="Code Review AI reviews GitHub code for quality, reliability, and security." />
+    <title>Code Review AI | GitHub Code Reviewer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <style>
+      :root {
+        color-scheme: dark;
+        --night: #07101f;
+        --panel: rgba(13, 27, 46, .78);
+        --ink: #eef6ff;
+        --muted: #9badc4;
+        --faint: #71839b;
+        --cyan: #54e8ff;
+        --blue: #568cff;
+        --mint: #80f2d0;
+        --line: rgba(147, 184, 222, .14);
+        --display: "Outfit", "Segoe UI", sans-serif;
+        --mono: "DM Mono", Consolas, monospace;
+      }
+      *, *::before, *::after { box-sizing: border-box; }
+      html { min-height: 100%; scrollbar-color: #377da5 #091323; }
+      body {
+        min-height: 100vh; margin: 0; color: var(--ink); font-family: var(--display);
+        background: radial-gradient(ellipse 50rem 36rem at 6% 0%, rgba(24,108,164,.22), transparent 72%),
+          radial-gradient(ellipse 42rem 32rem at 100% 95%, rgba(42,70,156,.2), transparent 72%),
+          linear-gradient(145deg, #07101f, #091629 53%, #080f20);
+        background-attachment: fixed; -webkit-font-smoothing: antialiased;
+      }
+      body::before { position: fixed; inset: 0; z-index: -1; pointer-events: none; content: "";
+        background-image: linear-gradient(rgba(126,168,211,.045) 1px, transparent 1px), linear-gradient(90deg, rgba(126,168,211,.045) 1px, transparent 1px);
+        background-size: 48px 48px; mask-image: linear-gradient(to bottom, #000, transparent 94%); }
+      button, input { font: inherit; }
+      button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
+      .shell { width: min(100% - 48px, 1240px); margin-inline: auto; }
+      .masthead { position: sticky; top: 0; z-index: 5; border-bottom: 1px solid var(--line); background: rgba(7,16,31,.82); backdrop-filter: blur(18px); }
+      .nav { min-height: 74px; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+      .brand { display: flex; align-items: center; gap: 11px; color: var(--ink); text-decoration: none; font-size: 17px; font-weight: 700; }
+      .brand-mark { display: grid; width: 37px; height: 37px; place-items: center; color: var(--cyan); border: 1px solid rgba(84,232,255,.38); border-radius: 11px; background: linear-gradient(145deg,rgba(84,232,255,.16),rgba(58,107,220,.12)); box-shadow: 0 0 25px rgba(84,232,255,.1); }
+      .brand-mark svg { width: 20px; height: 20px; }
+      .brand small { display: block; margin-top: 1px; color: var(--faint); font-family: var(--mono); font-size: 9px; font-weight: 400; letter-spacing: .11em; text-transform: uppercase; }
+      .nav-links { display: flex; align-items: center; gap: 7px; }
+      .nav-links a { padding: 9px 12px; border-radius: 9px; color: var(--muted); font-size: 13px; text-decoration: none; }
+      .nav-links a[aria-current="page"], .nav-links a:hover { color: #dcfaff; background: rgba(84,232,255,.08); }
+      .connection { display: inline-flex; align-items: center; gap: 9px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font-size: 12px; white-space: nowrap; }
+      .dot { width: 7px; height: 7px; border-radius: 50%; background: #7890aa; box-shadow: 0 0 8px currentColor; }
+      .connection[data-state="working"] .dot { color: #ffc47a; background: #ffc47a; animation: pulse 1s infinite; }
+      .connection[data-state="success"] .dot { color: var(--mint); background: var(--mint); }
+      .connection[data-state="error"] .dot { color: #ff7d8c; background: #ff7d8c; }
+      main { padding: 55px 0 70px; }
+      .intro { display: flex; justify-content: space-between; align-items: end; gap: 30px; margin-bottom: 34px; }
+      .eyebrow { display: flex; align-items: center; gap: 8px; color: var(--cyan); font-family: var(--mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; }
+      h1 { max-width: 690px; margin: 13px 0 12px; font-size: clamp(38px, 5vw, 62px); line-height: 1.02; letter-spacing: -.045em; }
+      h1 span { color: var(--cyan); }
+      .intro p { max-width: 590px; margin: 0; color: var(--muted); font-size: 16px; line-height: 1.65; }
+      .secure-note { display: flex; align-items: center; gap: 8px; padding: 10px 13px; border: 1px solid var(--line); border-radius: 10px; color: #b8c8da; font-size: 12px; white-space: nowrap; }
+      .secure-note svg { color: var(--mint); }
+      .layout { display: grid; grid-template-columns: minmax(300px, .84fr) minmax(0, 1.55fr); gap: 20px; align-items: start; }
+      .card { border: 1px solid rgba(149,188,225,.16); border-radius: 18px; background: linear-gradient(145deg, rgba(15,31,52,.88), rgba(9,21,38,.86)); box-shadow: 0 18px 65px rgba(0,0,0,.18), inset 0 1px rgba(255,255,255,.025); }
+      .input-card { padding: 25px; }
+      .card-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 24px; }
+      .card-heading h2, .workspace-head h2 { margin: 0; font-size: 18px; letter-spacing: -.01em; }
+      .step { color: var(--faint); font-family: var(--mono); font-size: 11px; }
+      .label-row { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 9px; }
+      label { font-size: 13px; font-weight: 600; }
+      .required { color: #ff9ca7; font-size: 11px; }
+      .input-wrap { position: relative; }
+      .input-wrap svg { position: absolute; top: 15px; left: 14px; width: 18px; height: 18px; color: #7b92aa; }
+      input[type="url"] { width: 100%; height: 48px; padding: 0 13px 0 43px; border: 1px solid rgba(146,180,215,.2); border-radius: 10px; color: var(--ink); background: rgba(4,13,25,.58); font-family: var(--mono); font-size: 11px; transition: border-color .18s, box-shadow .18s; }
+      input[type="url"]::placeholder { color: #657b95; }
+      input[type="url"]:focus { border-color: rgba(84,232,255,.62); outline: none; box-shadow: 0 0 0 3px rgba(84,232,255,.09); }
+      input[aria-invalid="true"] { border-color: #ff7889; box-shadow: 0 0 0 3px rgba(255,120,137,.09); }
+      .hint { margin: 9px 0 0; color: var(--faint); font-size: 12px; line-height: 1.5; }
+      .checks { display: grid; gap: 12px; margin: 22px 0; padding: 17px 0; border-block: 1px solid var(--line); }
+      .check-row { display: flex; align-items: center; gap: 10px; color: #c8d5e4; font-size: 13px; }
+      .check-row input { width: 15px; height: 15px; accent-color: #51cae9; }
+      .primary { position: relative; display: flex; width: 100%; min-height: 49px; align-items: center; justify-content: center; gap: 9px; overflow: hidden; border: 0; border-radius: 10px; color: #04101d; background: linear-gradient(105deg,#44dcf7,#5ca7ff 52%,#7a91ff); box-shadow: 0 8px 25px rgba(47,161,238,.18); font-weight: 700; cursor: pointer; transition: transform .18s, filter .18s; }
+      .primary:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.08); }
+      .primary:disabled { cursor: wait; opacity: .72; }
+      .primary svg { width: 17px; height: 17px; }
+      .input-error { min-height: 20px; margin: 10px 0 0; color: #ff9ca7; font-size: 12px; }
+      .review-tip { margin-top: 20px; padding: 14px; border: 1px solid rgba(84,232,255,.12); border-radius: 12px; background: rgba(84,232,255,.035); }
+      .review-tip strong { display: block; margin-bottom: 5px; color: #dffaff; font-size: 12px; }
+      .review-tip p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
+      .workspace { min-height: 600px; overflow: hidden; }
+      .workspace-head { display: flex; min-height: 74px; align-items: center; justify-content: space-between; gap: 12px; padding: 0 23px; border-bottom: 1px solid var(--line); }
+      .workspace-title { display: flex; align-items: center; gap: 11px; }
+      .workspace-icon { display: grid; width: 35px; height: 35px; place-items: center; border: 1px solid rgba(86,140,255,.24); border-radius: 10px; color: #8cb0ff; background: rgba(86,140,255,.1); }
+      .workspace-icon svg { width: 18px; height: 18px; }
+      .live-label { display: flex; align-items: center; gap: 7px; color: var(--faint); font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: .1em; }
+      .live-label::before { width: 6px; height: 6px; border-radius: 50%; background: #657b95; content: ""; }
+      .workspace[data-state="working"] .live-label::before { background: #ffc47a; box-shadow: 0 0 9px #ffc47a; }
+      .workspace[data-state="success"] .live-label::before { background: var(--mint); box-shadow: 0 0 9px var(--mint); }
+      .workspace-content { padding: 24px; }
+      .empty-state { min-height: 450px; display: grid; place-items: center; align-content: center; text-align: center; }
+      .radar { position: relative; display: grid; width: 120px; height: 120px; place-items: center; margin-bottom: 21px; color: var(--cyan); }
+      .radar::before, .radar::after { position: absolute; inset: 0; border: 1px dashed rgba(84,232,255,.25); border-radius: 50%; content: ""; animation: orbit 18s linear infinite; }
+      .radar::after { inset: 13px; border-style: solid; border-color: rgba(86,140,255,.23); animation-direction: reverse; animation-duration: 14s; }
+      .radar svg { width: 34px; height: 34px; filter: drop-shadow(0 0 11px rgba(84,232,255,.56)); }
+      .empty-state h3 { margin: 0 0 7px; font-size: 20px; }
+      .empty-state p { max-width: 360px; margin: 0; color: var(--muted); font-size: 14px; line-height: 1.6; }
+      .loading { display: none; min-height: 450px; align-content: center; justify-items: center; text-align: center; }
+      .workspace[data-state="working"] .loading { display: grid; }
+      .workspace[data-state="working"] .empty-state, .workspace[data-state="working"] .result { display: none; }
+      .spinner { width: 48px; height: 48px; margin-bottom: 20px; border: 2px solid rgba(84,232,255,.15); border-top-color: var(--cyan); border-radius: 50%; animation: spin .85s linear infinite; box-shadow: 0 0 22px rgba(84,232,255,.1); }
+      .loading h3 { margin: 0 0 7px; font-size: 19px; }
+      .loading p { margin: 0; color: var(--muted); font-size: 13px; }
+      .result { display: none; }
+      .workspace[data-state="success"] .result, .workspace[data-state="error"] .result { display: block; }
+      .result-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+      .result-state { display: flex; align-items: center; gap: 8px; color: var(--mint); font-size: 13px; font-weight: 600; }
+      .result-actions { display: flex; gap: 8px; }
+      .utility { min-height: 34px; display: inline-flex; align-items: center; gap: 7px; padding: 0 10px; border: 1px solid var(--line); border-radius: 8px; color: #c2d2e3; background: rgba(255,255,255,.025); font-size: 11px; cursor: pointer; }
+      .utility:hover { border-color: rgba(84,232,255,.34); color: var(--cyan); }
+      .report { min-height: 390px; max-height: 640px; overflow: auto; padding: 20px; border: 1px solid rgba(149,188,225,.12); border-radius: 12px; color: #cdd9e7; background: rgba(3,11,21,.45); font-family: var(--mono); font-size: 12px; line-height: 1.75; white-space: pre-wrap; overflow-wrap: anywhere; }
+      .workspace[data-state="error"] .result-state { color: #ff9ca7; }
+      .workspace[data-state="error"] .report { border-color: rgba(255,125,140,.23); }
+      .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 20px 0; }
+      .stat { padding: 15px 17px; border: 1px solid var(--line); border-radius: 13px; background: rgba(13,27,46,.6); }
+      .stat-top { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; color: var(--faint); font-size: 11px; }
+      .stat-top svg { width: 15px; height: 15px; color: var(--cyan); }
+      .stat strong { font-size: 14px; font-weight: 600; }
+      footer { display: flex; align-items: center; justify-content: space-between; gap: 15px; padding: 20px 0 25px; border-top: 1px solid var(--line); color: var(--faint); font-size: 11px; }
+      footer span:last-child { font-family: var(--mono); }
+      .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+      @keyframes spin { to { transform: rotate(360deg); } }
+      @keyframes orbit { to { transform: rotate(360deg); } }
+      @keyframes pulse { 50% { opacity: .45; } }
+      @media (max-width: 850px) {
+        .shell { width: min(100% - 32px, 700px); }
+        .nav-links { display: none; }
+        .intro { align-items: start; flex-direction: column; }
+        .layout { grid-template-columns: 1fr; }
+        .workspace { min-height: 520px; }
+      }
+      @media (max-width: 520px) {
+        .shell { width: min(100% - 24px, 460px); }
+        .nav { min-height: 65px; gap: 10px; }
+        .brand { font-size: 15px; }
+        .brand-mark { width: 33px; height: 33px; }
+        .connection { padding: 7px 9px; font-size: 10px; }
+        main { padding: 38px 0 45px; }
+        h1 { font-size: 39px; }
+        .intro p { font-size: 14px; }
+        .secure-note { white-space: normal; }
+        .input-card { padding: 19px; }
+        .workspace-head { min-height: 67px; padding-inline: 16px; }
+        .workspace-content { padding: 15px; }
+        .empty-state, .loading { min-height: 390px; }
+        .stats { grid-template-columns: 1fr; gap: 8px; }
+        .stat { display: flex; justify-content: space-between; align-items: center; }
+        .stat-top { margin: 0; }
+        .report { min-height: 330px; padding: 15px; font-size: 11px; }
+        .result-bar { align-items: flex-start; flex-direction: column; }
+        footer { align-items: flex-start; flex-direction: column; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+      }
+      .shell { width: min(100% - 48px, 1540px); }
+      .nav { min-height: 70px; }
+      .nav-links a { padding: 9px 15px; }
+      .nav-links a[aria-current="page"] { border: 1px solid rgba(84,232,255,.25); border-radius: 999px; color: var(--cyan); background: rgba(84,232,255,.1); }
+      .nav-links a:not([href="#review"]) { cursor: pointer; }
+      main { padding: 25px 0 38px; }
+      .dashboard-layout { display: grid; grid-template-columns: minmax(310px, .76fr) minmax(0, 1.64fr); gap: 22px; align-items: start; }
+      .source-panel { position: sticky; top: 94px; padding: 23px; }
+      .source-panel h1 { margin: 0 0 21px; font-size: 20px; letter-spacing: -.02em; }
+      .source-form { margin-bottom: 25px; }
+      .source-label { display: block; margin-bottom: 8px; color: var(--faint); font-family: var(--mono); font-size: 11px; font-weight: 500; letter-spacing: .12em; text-transform: uppercase; }
+      .source-form .primary { margin-top: 15px; }
+      .source-preview { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 12px; }
+      .meta-chip { display: inline-flex; max-width: 100%; align-items: center; overflow: hidden; padding: 5px 9px; border: 1px solid rgba(84,232,255,.19); border-radius: 8px; color: #a9c7de; background: rgba(84,232,255,.055); font-family: var(--mono); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+      .source-path { margin: 8px 0 0; color: var(--muted); font-family: var(--mono); font-size: 11px; line-height: 1.5; overflow-wrap: anywhere; }
+      .score-list { display: grid; gap: 8px; }
+      .score-list-head { display: flex; justify-content: space-between; gap: 8px; margin: 24px 0 10px; color: var(--faint); font-family: var(--mono); font-size: 10px; font-weight: 500; letter-spacing: .1em; text-transform: uppercase; }
+      .score-list-head span:last-child { color: var(--cyan); }
+      .score-row { display: flex; min-height: 47px; align-items: center; justify-content: space-between; gap: 12px; padding: 0 12px; border: 1px solid rgba(149,188,225,.12); border-radius: 11px; color: #d7e3f0; background: rgba(5,15,30,.36); font-size: 13px; }
+      .score-row strong { color: var(--faint); font-family: var(--mono); font-size: 12px; white-space: nowrap; }
+      .score-row[data-scored="true"] strong { color: var(--cyan); }
+      .score-total { border-color: rgba(84,232,255,.25); background: rgba(84,232,255,.07); font-weight: 700; }
+      .workspace { min-height: 660px; border-radius: 20px; background: linear-gradient(150deg, rgba(16,34,66,.93), rgba(9,21,43,.96)); }
+      .workspace-head { min-height: 88px; padding-inline: 26px; }
+      .workspace-head h2 { font-size: 21px; }
+      .workspace-subtitle { margin: 3px 0 0; color: var(--muted); font-size: 13px; }
+      .live-label { padding: 9px 13px; border: 1px solid rgba(149,188,225,.16); border-radius: 999px; }
+      .workspace-content { padding: 24px 26px; }
+      .loading, .empty-state { min-height: 510px; }
+      .workspace[data-state="working"] .empty-state, .workspace[data-state="working"] .result,
+      .workspace[data-state="idle"] .result, .workspace[data-state="error"] .result { display: none; }
+      .workspace[data-state="success"] .empty-state { display: none; }
+      .result { display: none; }
+      .workspace[data-state="success"] .result { display: block; }
+      .result-bar { margin-bottom: 16px; }
+      .result-state { color: var(--mint); }
+      .result-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 14px; color: var(--muted); font-family: var(--mono); font-size: 11px; }
+      .result-meta .reviewed-at { margin-left: auto; color: var(--faint); }
+      .overview-card { display: grid; grid-template-columns: 145px minmax(0,1fr); gap: 22px; align-items: center; padding: 21px; border: 1px solid rgba(84,232,255,.27); border-radius: 18px; background: linear-gradient(120deg,rgba(6,22,47,.85),rgba(18,39,76,.78)); box-shadow: 0 12px 40px rgba(0,188,255,.08), inset 0 0 35px rgba(84,232,255,.025); }
+      .score-gauge { position: relative; display: grid; width: 132px; aspect-ratio: 1; place-items: center; border-radius: 50%; background: conic-gradient(var(--gauge-color, var(--cyan)) calc(var(--score-percent, 0) * 1%), rgba(91,119,159,.24) 0); filter: drop-shadow(0 0 14px rgba(84,232,255,.25)); }
+      .score-gauge::before { position: absolute; inset: 9px; border: 1px solid rgba(145,182,221,.14); border-radius: inherit; background: #0b1834; content: ""; }
+      .gauge-value { position: relative; text-align: center; }
+      .gauge-value strong { display: block; font-size: 35px; line-height: 1; }
+      .gauge-value span { color: var(--muted); font-family: var(--mono); font-size: 11px; }
+      .summary-copy { min-width: 0; }
+      .summary-copy .source-label { margin-bottom: 8px; }
+      .badges { display: flex; flex-wrap: wrap; gap: 8px; margin: 9px 0; }
+      .grade-badge, .merge-badge { display: inline-flex; align-items: center; min-height: 27px; padding: 4px 10px; border: 1px solid rgba(255,125,140,.31); border-radius: 999px; color: #ff8798; background: rgba(255,125,140,.1); font-family: var(--mono); font-size: 11px; font-weight: 500; }
+      .grade-badge.good, .merge-badge.approve { border-color: rgba(128,242,208,.29); color: var(--mint); background: rgba(128,242,208,.08); }
+      .grade-badge.fair, .merge-badge.changes { border-color: rgba(255,196,122,.34); color: #ffc47a; background: rgba(255,196,122,.08); }
+      .summary-text { margin: 10px 0 0; color: #a9bbd2; font-size: 15px; line-height: 1.7; }
+      .section-title { margin: 25px 0 14px; padding-bottom: 11px; border-bottom: 1px solid var(--line); color: var(--cyan); font-size: 21px; letter-spacing: -.02em; }
+      .breakdown-card { display: grid; grid-template-columns: minmax(280px, 1.05fr) minmax(0, 1.25fr); gap: 25px; align-items: center; padding: 17px; border: 1px solid rgba(149,188,225,.13); border-radius: 17px; background: rgba(5,15,34,.55); }
+      .radar-chart { display: block; width: 100%; max-width: 360px; margin-inline: auto; overflow: hidden; }
+      .radar-grid { fill: none; stroke: rgba(117,149,193,.4); stroke-width: 1; }
+      .radar-shape { fill: rgba(35,209,237,.22); stroke: #23d1ed; stroke-width: 2.5; filter: drop-shadow(0 0 5px rgba(35,209,237,.4)); }
+      .radar-dot { fill: #ffc447; stroke: #122344; stroke-width: 2; }
+      .radar-label { fill: #a7bad3; font-family: var(--mono); font-size: 12px; }
+      .radar-score { fill: #ffc447; font-family: var(--mono); font-size: 12px; font-weight: 700; }
+      .radar-caption { margin: -3px 0 0; color: var(--faint); font-family: var(--mono); font-size: 10px; text-align: center; }
+      .bars { display: grid; gap: 17px; }
+      .bar-top { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 7px; color: #d7e3f0; font-size: 14px; font-weight: 600; }
+      .bar-value { color: #ffc447; font-family: var(--mono); white-space: nowrap; }
+      .bar-value.low { color: #ff7088; }
+      .bar-track { height: 8px; overflow: hidden; border-radius: 999px; background: rgba(95,122,165,.26); }
+      .bar-fill { height: 100%; width: 0; border-radius: inherit; background: linear-gradient(90deg,#ffbf24,#ffd247); box-shadow: 0 0 10px rgba(255,194,45,.2); }
+      .bar-fill.low { background: #fa6682; box-shadow: 0 0 10px rgba(250,102,130,.2); }
+      .bar-rationale { margin: 6px 0 0; color: var(--faint); font-size: 11px; line-height: 1.45; }
+      .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 22px; }
+      .detail-card { padding: 18px; border: 1px solid var(--line); border-radius: 14px; background: rgba(5,15,34,.45); }
+      .detail-card h3 { margin: 0 0 12px; font-size: 15px; }
+      .detail-card ul { display: grid; gap: 10px; margin: 0; padding-left: 19px; color: #bdcadd; font-size: 13px; line-height: 1.55; }
+      .finding-list { display: grid; gap: 12px; }
+      .finding { padding: 16px; border: 1px solid rgba(149,188,225,.13); border-left: 3px solid var(--finding-color,#ffc47a); border-radius: 11px; background: rgba(5,15,34,.45); }
+      .finding-top { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; margin-bottom: 9px; }
+      .severity { color: var(--finding-color,#ffc47a); font-family: var(--mono); font-size: 10px; font-weight: 500; text-transform: uppercase; }
+      .finding-location { color: var(--faint); font-family: var(--mono); font-size: 10px; }
+      .finding h4 { margin: 0 0 7px; font-size: 14px; }
+      .finding p { margin: 5px 0; color: #b5c4d7; font-size: 12px; line-height: 1.6; }
+      .finding p strong { color: #e3edf8; }
+      .finding code, .code-sample { font-family: var(--mono); }
+      .code-sample { display: block; overflow: auto; margin-top: 9px; padding: 11px; border-radius: 8px; color: #b9eaf1; background: rgba(1,8,18,.65); font-size: 11px; white-space: pre-wrap; overflow-wrap: anywhere; }
+      .report-error { display: none; margin-top: 14px; padding: 13px; border: 1px solid rgba(255,125,140,.3); border-radius: 10px; color: #ff9ca7; background: rgba(255,125,140,.08); font-size: 13px; }
+      .workspace[data-state="error"] .report-error { display: block; }
+      .workspace[data-state="error"] .empty-state { display: grid; }
+      .dialog { width: min(540px, calc(100% - 28px)); padding: 0; border: 1px solid rgba(84,232,255,.24); border-radius: 16px; color: var(--ink); background: #0b1830; box-shadow: 0 24px 100px rgba(0,0,0,.6); }
+      .dialog::backdrop { background: rgba(1,7,17,.72); backdrop-filter: blur(5px); }
+      .dialog-inner { padding: 22px; }
+      .dialog-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 16px; }
+      .dialog-head h2 { margin: 0; font-size: 18px; }
+      .dialog p, .dialog li { color: var(--muted); font-size: 13px; line-height: 1.65; }
+      .history-item { padding: 11px 0; border-top: 1px solid var(--line); }
+      .history-item strong { display: block; margin-bottom: 4px; color: #d9e8f7; font-size: 13px; }
+      .history-item span { color: var(--faint); font-family: var(--mono); font-size: 10px; }
+      .empty-history { color: var(--muted); font-size: 13px; }
+      @media (max-width: 900px) {
+        .shell { width: min(100% - 32px, 760px); }
+        .nav-links { gap: 1px; }
+        .nav-links a { padding-inline: 8px; font-size: 11px; }
+        .dashboard-layout { grid-template-columns: 1fr; }
+        .source-panel { position: static; }
+        .score-list { grid-template-columns: repeat(2,minmax(0,1fr)); }
+        .score-list-head, .score-total { grid-column: 1 / -1; }
+        .score-list-head { margin-top: 15px; }
+      }
+      @media (max-width: 620px) {
+        .shell { width: min(100% - 22px, 520px); }
+        .nav { flex-wrap: wrap; min-height: 62px; padding-block: 8px; }
+        .nav-links { order: 3; display: flex; width: 100%; justify-content: space-between; }
+        .nav-links a { padding: 7px; font-size: 10px; }
+        .connection { padding: 6px 8px; font-size: 10px; }
+        main { padding-top: 15px; }
+        .source-panel { padding: 16px; }
+        .workspace-head { align-items: flex-start; padding: 15px; }
+        .workspace-head h2 { font-size: 17px; }
+        .workspace-content { padding: 15px; }
+        .live-label { max-width: 130px; padding: 7px 9px; font-size: 8px; }
+        .overview-card { grid-template-columns: 1fr; justify-items: center; text-align: center; padding: 18px 14px; }
+        .summary-copy .source-label { text-align: center; }
+        .badges { justify-content: center; }
+        .breakdown-card { grid-template-columns: minmax(0, 1fr); gap: 15px; padding: 12px; }
+        .radar-chart { max-width: min(100%, 360px); }
+        .radar-label, .radar-score { font-size: 14px; }
+        .bars { width: 100%; padding: 0 5px 6px; }
+        .detail-grid { grid-template-columns: 1fr; }
+        .result-meta .reviewed-at { margin-left: 0; }
+        .score-list { grid-template-columns: 1fr; }
+        .score-list-head, .score-total { grid-column: auto; }
+        .empty-state, .loading { min-height: 280px; }
+        footer { gap: 7px; }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="masthead">
+      <div class="shell nav">
+        <a class="brand" href="/" aria-label="Code Review AI home">
+          <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="m8 8-4 4 4 4M16 8l4 4-4 4M14 5l-4 14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          <span>Code Review AI<small>Engineering intelligence</small></span>
+        </a>
+        <nav class="nav-links" aria-label="Main navigation">
+          <a href="#review" aria-current="page">Dashboard</a>
+          <a href="#github-connection" data-dialog="githubDialog">GitHub Connection</a>
+          <a href="#history" data-dialog="historyDialog">History</a>
+          <a href="#api-docs" data-dialog="apiDialog">API Docs</a>
+        </nav>
+        <div class="connection" id="connection" data-state="idle" role="status" aria-live="polite"><span class="dot" aria-hidden="true"></span><span id="connectionText">Ready for review</span></div>
+      </div>
+    </header>
+    <main class="shell" id="review">
+      <section class="dashboard-layout" aria-label="GitHub code review dashboard">
+        <aside class="card source-panel">
+          <form class="source-form" id="reviewForm" novalidate>
+            <label class="source-label" for="githubUrl">GitHub URL</label>
+            <div class="input-wrap">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M10 13.5 14 9.5m-6.5 7H6a4 4 0 0 1 0-8h4m4-1h2a4 4 0 0 1 0 8h-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+              <input id="githubUrl" name="githubUrl" type="url" autocomplete="url" spellcheck="false" placeholder="https://github.com/org/repo/blob/main/File.java" aria-describedby="urlHint inputError" required />
+            </div>
+            <p class="hint" id="urlHint">Link to a public Java source file. GitHub file links are converted automatically.</p>
+            <div class="source-preview" id="sourcePreview" hidden>
+              <span class="meta-chip" id="sourceType">FILE</span><span class="meta-chip" id="repositoryChip"></span><span class="meta-chip" id="branchChip"></span>
+            </div>
+            <p class="source-path" id="sourcePath"></p>
+            <button class="primary" id="submitButton" type="submit"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3v3m0 12v3M3 12h3m12 0h3M5.6 5.6l2.1 2.1m8.6 8.6 2.1 2.1m0-12.8-2.1 2.1m-8.6 8.6-2.1 2.1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.8"/></svg><span>Review source code</span></button>
+            <p class="input-error" id="inputError" role="alert"></p>
+          </form>
+          <div class="score-list-head"><span>Scored on</span><span>20 points each</span></div>
+          <div class="score-list" id="scoreList" aria-label="Score breakdown">
+            <div class="score-row"><span>Code Readability</span><strong data-side-score="codeReadability">—/20</strong></div>
+            <div class="score-row"><span>Code Efficiency</span><strong data-side-score="codeEfficiency">—/20</strong></div>
+            <div class="score-row"><span>Error Handling</span><strong data-side-score="errorHandling">—/20</strong></div>
+            <div class="score-row"><span>Maintainability</span><strong data-side-score="maintainability">—/20</strong></div>
+            <div class="score-row"><span>Best Practices and Standards</span><strong data-side-score="bestPractices">—/20</strong></div>
+            <div class="score-row score-total"><span>Overall score</span><strong id="sideOverall">—/100</strong></div>
+          </div>
+          <p class="hint">Scores are evidence-based evaluations of the supplied file, not execution or test results.</p>
+        </aside>
+        <section class="card workspace" id="workspace" data-state="idle" aria-labelledby="workspaceTitle">
+          <div class="workspace-head">
+            <div class="workspace-title"><span class="workspace-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M4 7V5a1 1 0 0 1 1-1h3m8 0h3a1 1 0 0 1 1 1v3m0 8v3a1 1 0 0 1-1 1h-3m-8 0H5a1 1 0 0 1-1-1v-3M8 12h8m-4-4v8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></span><div><h2 id="workspaceTitle">Review Workspace</h2><p class="workspace-subtitle">Your AI code review appears here.</p></div></div>
+            <span class="live-label" id="workspaceLabel">Awaiting source</span>
+          </div>
+          <div class="workspace-content">
+            <div class="empty-state">
+              <div class="radar" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.4"/><path d="M12 3.5v4m0 9v4M3.5 12h4m9 0h4M12 12l4.5-4.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="12" cy="12" r="1.4" fill="currentColor"/></svg></div>
+              <h3 id="emptyTitle">Your review starts here</h3><p id="emptyMessage">Submit a public GitHub source file to see a scored review, prioritized findings, and merge guidance.</p>
+            </div>
+            <div class="loading" aria-live="polite"><div class="spinner" aria-hidden="true"></div><h3>Reviewing your source</h3><p id="progressText">Preparing code analysis…</p></div>
+            <div class="result" id="result" aria-live="polite">
+              <div class="result-bar"><div class="result-state" id="resultState"><span aria-hidden="true">✓</span><span>Analysis complete</span></div><div class="result-actions"><button class="utility" id="copyButton" type="button">Copy report</button><button class="utility" id="newReviewButton" type="button">New review</button></div></div>
+              <div class="result-meta"><span class="meta-chip" id="fileChip">FILE</span><span id="repoMeta"></span><span id="branchMeta"></span><span class="reviewed-at" id="reviewedAt"></span></div>
+              <section class="overview-card" aria-labelledby="overallHeading">
+                <div class="score-gauge" id="scoreGauge" role="img" aria-label="Overall score"><div class="gauge-value"><strong id="overallScore">0</strong><span>/ 100</span></div></div>
+                <div class="summary-copy"><p class="source-label" id="overallHeading">Overall code score</p><div class="badges"><span class="grade-badge" id="gradeBadge">Poor</span><span class="merge-badge" id="mergeBadge">Do not merge</span></div><p class="summary-text" id="summaryText"></p></div>
+              </section>
+              <h3 class="section-title">Score Breakdown</h3>
+              <section class="breakdown-card" aria-label="Category scores">
+                <div class="radar-container"><svg class="radar-chart" id="radarChart" viewBox="0 0 440 340" role="img" aria-label="Five-category score radar chart"></svg><p class="radar-caption">Each axis runs from 0 to 20</p></div>
+                <div class="bars" id="scoreBars"></div>
+              </section>
+              <section class="detail-grid">
+                <article class="detail-card"><h3>Top Recommendations</h3><ul id="recommendations"></ul></article>
+                <article class="detail-card" id="limitationsCard"><h3>Scope &amp; Limitations</h3><ul id="limitations"></ul></article>
+              </section>
+              <section id="findingsSection"><h3 class="section-title">Detailed Findings</h3><div class="finding-list" id="findings"></div></section>
+              <section class="detail-card" id="correctedSection" hidden><h3>Suggested Code Example</h3><pre class="code-sample" id="correctedCode"></pre></section>
+            </div>
+            <div class="report-error" id="reportError" role="alert"></div>
+          </div>
+        </section>
+      </section>
+    </main>
+    <dialog class="dialog" id="githubDialog"><div class="dialog-inner"><div class="dialog-head"><h2>GitHub Connection</h2><button class="utility" data-close-dialog type="button">Close</button></div><p>This reviewer reads public raw GitHub source files. No GitHub token or private-repository connection is configured in this workflow.</p><p>The UI converts standard <code>github.com/.../blob/...</code> file links to their raw source URL before review.</p></div></dialog>
+    <dialog class="dialog" id="historyDialog"><div class="dialog-inner"><div class="dialog-head"><h2>Recent Review History</h2><button class="utility" data-close-dialog type="button">Close</button></div><div id="historyList"></div></div></dialog>
+    <dialog class="dialog" id="apiDialog"><div class="dialog-inner"><div class="dialog-head"><h2>Review API</h2><button class="utility" data-close-dialog type="button">Close</button></div><p><strong>Endpoint:</strong> <code>POST /api/review</code></p><p><strong>Body:</strong> <code>{ "githubUrl": "https://github.com/org/repo/blob/main/src/File.java" }</code></p><p>The server validates and normalizes public HTTPS GitHub file URLs, then calls the configured n8n webhook. The response is a structured JSON review with five scores, findings, recommendations, and limitations.</p></div></dialog>
+    <footer class="shell"><span>© <span id="year"></span> Code Review AI · Engineering intelligence</span><span>Powered by n8n · AI-assisted, human-led</span></footer>
+    <script>
+      const form = document.querySelector("#reviewForm");
+      const urlInput = document.querySelector("#githubUrl");
+      const inputError = document.querySelector("#inputError");
+      const submitButton = document.querySelector("#submitButton");
+      const buttonText = submitButton.querySelector("span");
+      const connection = document.querySelector("#connection");
+      const connectionText = document.querySelector("#connectionText");
+      const workspace = document.querySelector("#workspace");
+      const workspaceLabel = document.querySelector("#workspaceLabel");
+      const progressText = document.querySelector("#progressText");
+      const copyButton = document.querySelector("#copyButton");
+      const newReviewButton = document.querySelector("#newReviewButton");
+      const reportError = document.querySelector("#reportError");
+      const stages = ["Fetching the source file…", "Scoring five engineering dimensions…", "Checking grounded findings and merge guidance…", "Preparing the structured review…"];
+      const categories = [
+        { key: "codeReadability", label: "Code Readability", short: "Readability" },
+        { key: "codeEfficiency", label: "Code Efficiency", short: "Efficiency" },
+        { key: "errorHandling", label: "Error Handling", short: "Error Handling" },
+        { key: "maintainability", label: "Maintainability", short: "Maintainability" },
+        { key: "bestPractices", label: "Best Practices and Standards", short: "Best Practices" },
+      ];
+      let stageTimer;
+      let currentReview;
+      let currentSource;
+      document.querySelector("#year").textContent = String(new Date().getFullYear());
+
+      function normalizeGitHubUrl(value) {
+        let parsed;
+        try { parsed = new URL(value.trim()); } catch { throw new Error("Enter a complete, valid GitHub file URL."); }
+        if (parsed.protocol !== "https:") throw new Error("Use a secure HTTPS GitHub URL.");
+        if (parsed.hostname === "github.com") {
+          const parts = parsed.pathname.split("/").filter(Boolean);
+          if (parts.length < 5 || parts[2] !== "blob") throw new Error("Use a GitHub file link in the format /owner/repository/blob/branch/path/to/file.");
+          return `https://raw.githubusercontent.com/${parts[0]}/${parts[1]}/${parts.slice(3).join("/")}`;
+        }
+        if (parsed.hostname !== "raw.githubusercontent.com" || parsed.pathname.split("/").filter(Boolean).length < 4) {
+          throw new Error("Only github.com file links and raw.githubusercontent.com file links are supported.");
+        }
+        return parsed.origin + parsed.pathname;
+      }
+
+      function setState(state, message) {
+        connection.dataset.state = state;
+        connectionText.textContent = message;
+      }
+
+      function unwrapReview(payload) {
+        if (typeof payload === "string") {
+          try { return unwrapReview(JSON.parse(payload)); }
+          catch { throw new Error("The workflow response was not valid structured JSON. Update the n8n prompt and Respond to Webhook node to return the review schema."); }
+        }
+        if (Array.isArray(payload)) return payload.length ? unwrapReview(payload[0]) : null;
+        if (payload && typeof payload === "object") {
+          if ("overallScore" in payload && "categories" in payload) return payload;
+          for (const key of ["review", "text", "output", "response", "message"]) {
+            if (payload[key] !== undefined) return unwrapReview(payload[key]);
+          }
+        }
+        return null;
+      }
+
+      function validateReview(review) {
+        if (!review || !Number.isInteger(review.overallScore) || review.overallScore < 0 || review.overallScore > 100) {
+          throw new Error("The review is missing a valid overall score from 0 to 100.");
+        }
+        let total = 0;
+        for (const category of categories) {
+          const item = review.categories?.[category.key];
+          if (!item || !Number.isInteger(item.score) || item.score < 0 || item.score > 20 || typeof item.rationale !== "string") {
+            throw new Error(`The review response is missing a valid ${category.label} score.`);
+          }
+          total += item.score;
+        }
+        if (total !== review.overallScore) throw new Error("The overall score does not equal the sum of its five category scores.");
+        if (typeof review.summary !== "string" || !review.summary.trim()) throw new Error("The review response is missing its summary.");
+        if (!["Excellent", "Good", "Fair", "Poor"].includes(review.grade)) throw new Error("The review response contains an invalid quality grade.");
+        if (!["Approve", "Request changes", "Do not merge"].includes(review.mergeRecommendation)) throw new Error("The review response contains an invalid merge recommendation.");
+        if (!Array.isArray(review.findings) || !Array.isArray(review.topRecommendations) || !Array.isArray(review.limitations)) {
+          throw new Error("The review response is missing findings, recommendations, or scope limitations.");
+        }
+        return review;
+      }
+
+      function sourceMetadata(value) {
+        const url = new URL(value);
+        const parts = url.pathname.split("/").filter(Boolean);
+        const isGitHub = url.hostname === "github.com";
+        const owner = parts[0] || "repository";
+        const repository = parts[1] || "";
+        const branchIndex = isGitHub ? 3 : 2;
+        const branch = isGitHub ? (parts[3] || "default") : (parts[2] || "default");
+        const fileParts = isGitHub ? parts.slice(4) : parts.slice(3);
+        const file = fileParts.join("/") || parts.at(-1) || "source file";
+        return { owner, repository, branch, file, repo: `${owner}/${repository}` };
+      }
+
+      function populateSourcePreview(metadata) {
+        document.querySelector("#sourcePreview").hidden = false;
+        document.querySelector("#repositoryChip").textContent = metadata.repo;
+        document.querySelector("#branchChip").textContent = metadata.branch;
+        document.querySelector("#sourcePath").textContent = metadata.file;
+        document.querySelector("#fileChip").textContent = metadata.file.split("/").at(-1);
+        document.querySelector("#repoMeta").textContent = metadata.repo;
+        document.querySelector("#branchMeta").textContent = `@ ${metadata.branch}`;
+      }
+
+      function setSideScores(review) {
+        for (const category of categories) {
+          const score = review.categories[category.key].score;
+          const node = document.querySelector(`[data-side-score="${category.key}"]`);
+          node.textContent = `${score}/20`;
+          node.parentElement.dataset.scored = "true";
+        }
+        document.querySelector("#sideOverall").textContent = `${review.overallScore}/100`;
+      }
+
+      function radarPoint(index, score, radius = 92) {
+        const angle = -Math.PI / 2 + index * (Math.PI * 2 / categories.length);
+        return [236 + Math.cos(angle) * radius * score / 20, 170 + Math.sin(angle) * radius * score / 20];
+      }
+
+      function renderRadar(review) {
+        const svg = document.querySelector("#radarChart");
+        const ns = "http://www.w3.org/2000/svg";
+        svg.replaceChildren();
+        for (let level = 1; level <= 4; level++) {
+          const points = categories.map((_, index) => radarPoint(index, level * 5)).map(point => point.join(",")).join(" ");
+          const polygon = document.createElementNS(ns, "polygon");
+          polygon.setAttribute("class", "radar-grid");
+          polygon.setAttribute("points", points);
+          svg.append(polygon);
+        }
+        categories.forEach((_, index) => {
+          const [x, y] = radarPoint(index, 20);
+          const line = document.createElementNS(ns, "line");
+          line.setAttribute("class", "radar-grid");
+          line.setAttribute("x1", "236"); line.setAttribute("y1", "170");
+          line.setAttribute("x2", String(x)); line.setAttribute("y2", String(y));
+          svg.append(line);
+        });
+        const scorePoints = categories.map((item, index) => radarPoint(index, review.categories[item.key].score));
+        const shape = document.createElementNS(ns, "polygon");
+        shape.setAttribute("class", "radar-shape");
+        shape.setAttribute("points", scorePoints.map(point => point.join(",")).join(" "));
+        svg.append(shape);
+        scorePoints.forEach(([x, y]) => {
+          const dot = document.createElementNS(ns, "circle");
+          dot.setAttribute("class", "radar-dot"); dot.setAttribute("cx", String(x)); dot.setAttribute("cy", String(y)); dot.setAttribute("r", "4.5");
+          svg.append(dot);
+        });
+        categories.forEach((item, index) => {
+          const [x, y] = radarPoint(index, 27);
+          const label = document.createElementNS(ns, "text");
+          label.setAttribute("class", "radar-label");
+          label.setAttribute("x", String(x)); label.setAttribute("y", String(y));
+          label.setAttribute("text-anchor", x < 221 ? "end" : x > 251 ? "start" : "middle");
+          label.textContent = item.short;
+          svg.append(label);
+          const score = document.createElementNS(ns, "text");
+          score.setAttribute("class", "radar-score");
+          score.setAttribute("x", String(x)); score.setAttribute("y", String(y + 20));
+          score.setAttribute("text-anchor", x < 221 ? "end" : x > 251 ? "start" : "middle");
+          score.textContent = `${review.categories[item.key].score}/20`;
+          svg.append(score);
+        });
+      }
+
+      function renderBars(review) {
+        const container = document.querySelector("#scoreBars");
+        container.replaceChildren();
+        for (const category of categories) {
+          const { score, rationale } = review.categories[category.key];
+          const item = document.createElement("div");
+          const heading = document.createElement("div");
+          heading.className = "bar-top";
+          const name = document.createElement("span"); name.textContent = category.label;
+          const value = document.createElement("span"); value.className = `bar-value${score < 10 ? " low" : ""}`; value.textContent = `${score}/20`;
+          heading.append(name, value);
+          const track = document.createElement("div"); track.className = "bar-track"; track.setAttribute("role", "meter");
+          track.setAttribute("aria-label", `${category.label} score`); track.setAttribute("aria-valuemin", "0"); track.setAttribute("aria-valuemax", "20"); track.setAttribute("aria-valuenow", String(score));
+          const fill = document.createElement("div"); fill.className = `bar-fill${score < 10 ? " low" : ""}`; fill.style.width = `${score * 5}%`;
+          track.append(fill);
+          const note = document.createElement("p"); note.className = "bar-rationale"; note.textContent = rationale;
+          item.append(heading, track, note);
+          container.append(item);
+        }
+      }
+
+      function appendList(list, values, emptyText) {
+        list.replaceChildren();
+        const entries = values.length ? values : [emptyText];
+        for (const value of entries) {
+          const item = document.createElement("li"); item.textContent = value; list.append(item);
+        }
+      }
+
+      function renderFindings(review) {
+        const container = document.querySelector("#findings");
+        container.replaceChildren();
+        document.querySelector("#findingsSection").hidden = review.findings.length === 0;
+        const colors = { Critical: "#ff526b", High: "#ff7088", Medium: "#ffc47a", Low: "#54e8ff", Informational: "#9badc4" };
+        for (const finding of review.findings) {
+          if (!finding || typeof finding !== "object" || typeof finding.issue !== "string") continue;
+          const card = document.createElement("article"); card.className = "finding";
+          const color = colors[finding.severity] || colors.Informational;
+          card.style.setProperty("--finding-color", color);
+          const top = document.createElement("div"); top.className = "finding-top";
+          const severity = document.createElement("span"); severity.className = "severity"; severity.textContent = finding.severity || "Informational";
+          const location = document.createElement("span"); location.className = "finding-location"; location.textContent = finding.location || "Location not specified";
+          top.append(severity, location);
+          const title = document.createElement("h4"); title.textContent = finding.issue;
+          card.append(top, title);
+          for (const [label, key] of [["Impact", "impact"], ["Recommendation", "recommendation"]]) {
+            if (typeof finding[key] !== "string" || !finding[key]) continue;
+            const paragraph = document.createElement("p");
+            const strong = document.createElement("strong"); strong.textContent = `${label}: `;
+            paragraph.append(strong, document.createTextNode(finding[key])); card.append(paragraph);
+          }
+          if (typeof finding.example === "string" && finding.example.trim()) {
+            const code = document.createElement("code"); code.className = "code-sample"; code.textContent = finding.example; card.append(code);
+          }
+          container.append(card);
+        }
+      }
+
+      function reviewAsText(review) {
+        const scores = categories.map(category => `${category.label}: ${review.categories[category.key].score}/20 — ${review.categories[category.key].rationale}`).join("\n");
+        const findings = review.findings.map(finding => `[${finding.severity}] ${finding.location}: ${finding.issue}\nImpact: ${finding.impact}\nRecommendation: ${finding.recommendation}`).join("\n\n");
+        return `Code Review AI — ${currentSource.repo}/${currentSource.file}\nOverall: ${review.overallScore}/100 (${review.grade})\nMerge: ${review.mergeRecommendation}\n\n${review.summary}\n\nSCORE BREAKDOWN\n${scores}\n\nFINDINGS\n${findings || "No findings evidenced in the supplied source."}\n\nTOP RECOMMENDATIONS\n${review.topRecommendations.join("\n")}\n\nLIMITATIONS\n${review.limitations.join("\n")}`;
+      }
+
+      function updateHistory(review, metadata) {
+        const entry = { repo: metadata.repo, file: metadata.file, score: review.overallScore, grade: review.grade, at: new Date().toISOString() };
+        const history = JSON.parse(localStorage.getItem("codeReviewAiHistory") || "[]");
+        localStorage.setItem("codeReviewAiHistory", JSON.stringify([entry, ...history.filter(item => item.repo !== entry.repo || item.file !== entry.file)].slice(0, 10)));
+      }
+
+      function showHistory() {
+        const list = document.querySelector("#historyList");
+        list.replaceChildren();
+        const history = JSON.parse(localStorage.getItem("codeReviewAiHistory") || "[]");
+        if (!history.length) {
+          const empty = document.createElement("p"); empty.className = "empty-history"; empty.textContent = "Completed reviews from this browser will be listed here."; list.append(empty);
+        }
+        for (const item of history) {
+          const row = document.createElement("div"); row.className = "history-item";
+          const title = document.createElement("strong"); title.textContent = `${item.repo} / ${item.file}`;
+          const meta = document.createElement("span"); meta.textContent = `${item.score}/100 · ${item.grade} · ${new Date(item.at).toLocaleString()}`;
+          row.append(title, meta); list.append(row);
+        }
+      }
+
+      function renderReview(review, metadata) {
+        currentReview = review;
+        currentSource = metadata;
+        setSideScores(review);
+        document.querySelector("#overallScore").textContent = String(review.overallScore);
+        document.querySelector("#scoreGauge").style.setProperty("--score-percent", String(review.overallScore));
+        document.querySelector("#scoreGauge").setAttribute("aria-label", `Overall code score ${review.overallScore} out of 100`);
+        const grade = document.querySelector("#gradeBadge");
+        grade.textContent = review.grade;
+        grade.className = `grade-badge ${review.grade.toLowerCase()}`;
+        const merge = document.querySelector("#mergeBadge");
+        merge.textContent = review.mergeRecommendation;
+        merge.className = `merge-badge ${review.mergeRecommendation === "Approve" ? "approve" : review.mergeRecommendation === "Request changes" ? "changes" : "reject"}`;
+        document.querySelector("#summaryText").textContent = review.summary;
+        document.querySelector("#reviewedAt").textContent = `Reviewed at ${new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`;
+        renderRadar(review);
+        renderBars(review);
+        appendList(document.querySelector("#recommendations"), review.topRecommendations.filter(item => typeof item === "string"), "No additional recommendations were returned.");
+        appendList(document.querySelector("#limitations"), review.limitations.filter(item => typeof item === "string"), "No additional scope limitations were reported.");
+        renderFindings(review);
+        const corrected = typeof review.correctedCodeExample === "string" ? review.correctedCodeExample.trim() : "";
+        document.querySelector("#correctedSection").hidden = !corrected;
+        document.querySelector("#correctedCode").textContent = corrected;
+        document.querySelector("#reportError").textContent = "";
+        populateSourcePreview(metadata);
+        updateHistory(review, metadata);
+        workspace.dataset.state = "success";
+        workspaceLabel.textContent = "Analysis complete";
+        document.querySelector("#resultState").innerHTML = '<span aria-hidden="true">✓</span><span>Analysis complete</span>';
+        setState("success", "n8n Connected");
+      }
+
+      form.addEventListener("submit", async event => {
+        event.preventDefault();
+        inputError.textContent = "";
+        urlInput.removeAttribute("aria-invalid");
+        let githubUrl;
+        let metadata;
+        try {
+          githubUrl = normalizeGitHubUrl(urlInput.value);
+          metadata = sourceMetadata(urlInput.value.trim());
+        } catch (error) {
+          inputError.textContent = error instanceof Error ? error.message : "Enter a valid GitHub file URL.";
+          urlInput.setAttribute("aria-invalid", "true");
+          urlInput.focus();
+          return;
+        }
+
+        reportError.textContent = "";
+        workspace.dataset.state = "working";
+        workspaceLabel.textContent = "Analysis in progress";
+        setState("working", "Review in progress");
+        buttonText.textContent = "Reviewing…";
+        submitButton.disabled = true;
+        urlInput.disabled = true;
+        let stage = 0;
+        progressText.textContent = stages[stage];
+        stageTimer = window.setInterval(() => {
+          stage = (stage + 1) % stages.length;
+          progressText.textContent = stages[stage];
+        }, 1800);
+
+        try {
+          const response = await fetch("/api/review", {
+            method: "POST",
+            headers: { "content-type": "application/json", accept: "application/json, text/plain" },
+            body: JSON.stringify({ githubUrl }),
+          });
+          const raw = await response.text();
+          let payload;
+          try { payload = JSON.parse(raw); } catch { payload = raw; }
+          if (!response.ok) {
+            const detail = payload && typeof payload === "object" && payload.error ? payload.error : raw;
+            throw new Error(detail || `Review request failed (${response.status}).`);
+          }
+          renderReview(validateReview(unwrapReview(payload)), metadata);
+        } catch (error) {
+          reportError.textContent = error instanceof Error ? error.message : "An unexpected error occurred while requesting the review.";
+          workspace.dataset.state = "error";
+          workspaceLabel.textContent = "Review failed";
+          document.querySelector("#emptyTitle").textContent = "Review could not be completed";
+          document.querySelector("#emptyMessage").textContent = "Check the message below, then try again when the issue is resolved.";
+          setState("error", "Review failed");
+        } finally {
+          window.clearInterval(stageTimer);
+          submitButton.disabled = false;
+          urlInput.disabled = false;
+          buttonText.textContent = "Review source code";
+        }
+      });
+
+      urlInput.addEventListener("input", () => {
+        inputError.textContent = "";
+        urlInput.removeAttribute("aria-invalid");
+        try { populateSourcePreview(sourceMetadata(urlInput.value.trim())); } catch {}
+      });
+      copyButton.addEventListener("click", async () => {
+        if (!currentReview || !currentSource) return;
+        try {
+          await navigator.clipboard.writeText(reviewAsText(currentReview));
+          copyButton.textContent = "Copied";
+          window.setTimeout(() => { copyButton.textContent = "Copy report"; }, 1400);
+        } catch {
+          copyButton.textContent = "Copy unavailable";
+          window.setTimeout(() => { copyButton.textContent = "Copy report"; }, 1800);
+        }
+      });
+      newReviewButton.addEventListener("click", () => {
+        currentReview = undefined;
+        workspace.dataset.state = "idle";
+        workspaceLabel.textContent = "Awaiting source";
+        document.querySelector("#emptyTitle").textContent = "Your review starts here";
+        document.querySelector("#emptyMessage").textContent = "Submit a public GitHub source file to see a scored review, prioritized findings, and merge guidance.";
+        document.querySelector("#reportError").textContent = "";
+        setState("idle", "Ready for review");
+        urlInput.focus();
+      });
+      document.querySelectorAll("[data-dialog]").forEach(link => {
+        link.addEventListener("click", event => {
+          event.preventDefault();
+          if (link.dataset.dialog === "historyDialog") showHistory();
+          document.querySelector(`#${link.dataset.dialog}`).showModal();
+        });
+      });
+      document.querySelectorAll("[data-close-dialog]").forEach(button => button.addEventListener("click", () => button.closest("dialog").close()));
+      document.querySelectorAll("dialog").forEach(dialog => dialog.addEventListener("click", event => {
+        if (event.target === dialog) dialog.close();
+      }));
+    </script>
+  </body>
+</html>
